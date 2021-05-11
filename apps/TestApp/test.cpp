@@ -88,7 +88,7 @@ int main() {
     Camerad camera = Camerad(trans, 0.0, 0.0, 0.0, SCREEN_HEIGHT, 1.0, SCREEN_WIDTH,
                      SCREEN_HEIGHT, SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
 
-    std::vector<std::unique_ptr<Geometry>> geometry;
+    std::vector<std::shared_ptr<Geometry>> geometry;
 
     LoadTestModel(geometry);
 
@@ -96,17 +96,20 @@ int main() {
 
     while (Update(camera)) {
         // Raytrace
-
         for (int y = 0; y < camera.imageHeight; y++) {
             for (int x = 0; x < camera.imageWidth; x++) {
                 vec3f colour(0.0,0.0,0.0);
                 double closestDist = std::numeric_limits<double>::max();
+
                 for (const auto& g : geometry) {
                     vec3d intersectionPoint;
+
                     if (g->intersect(Ray(camera.trans, camera.directionFromPixel({x,y})), intersectionPoint)) {
+
                         auto dist = (intersectionPoint - camera.trans).length();
+
                         if (dist < closestDist) {
-                            colour = g->colour;
+                            colour = g->getColour();
                             closestDist = dist;
                         }
                     }
@@ -114,24 +117,6 @@ int main() {
                 PutPixelSDL(mainscreen, x, y, colour);
             }
         }
-
-        // Rasterise vertices
-//         for (const auto& g : geometry) {
-//             if (Triangle* t = dynamic_cast<Triangle*>(g.get())) {
-//                 auto pp1 = camera.project((*t).v1);
-//                 auto pp2 = camera.project((*t).v2);
-//                 auto pp3 = camera.project((*t).v3);
-//
-//                 if (camera.inImage(pp1))
-//                     PutPixelSDL(mainscreen, int(pp1.x), int(pp1.y), t->colour);
-//
-//                 if (camera.inImage(pp2))
-//                     PutPixelSDL(mainscreen, int(pp2.x), int(pp2.y), t->colour);
-//
-//                 if (camera.inImage(pp3))
-//                     PutPixelSDL(mainscreen, int(pp3.x), int(pp3.y), t->colour);
-//             }
-//         }
 
         SDL_Renderframe(mainscreen);
 //        SDL_SaveImage(mainscreen, "mainout.bmp");

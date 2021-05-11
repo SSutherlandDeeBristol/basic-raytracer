@@ -3,48 +3,29 @@
 #include "Geometry.h"
 
 namespace bv {
-void scale(std::vector<Triangle> &triangles, float L) {
-    for (size_t i = 0; i < triangles.size(); ++i) {
-        triangles[i].v1 *= 2 / L;
-        triangles[i].v2 *= 2 / L;
-        triangles[i].v3 *= 2 / L;
 
-        triangles[i].v1 -= vec3d(1, 1, 1);
-        triangles[i].v2 -= vec3d(1, 1, 1);
-        triangles[i].v3 -= vec3d(1, 1, 1);
-
-        triangles[i].v1.x *= -1;
-        triangles[i].v2.x *= -1;
-        triangles[i].v3.x *= -1;
-
-        triangles[i].v1.y *= -1;
-        triangles[i].v2.y *= -1;
-        triangles[i].v3.y *= -1;
-    }
-}
-
-void translate(std::vector<Triangle> &triangles, double dist, vec3d dir) {
-    for (size_t i = 0; i < triangles.size(); ++i) {
-        triangles[i].v1 += (dir * dist);
-        triangles[i].v2 += (dir * dist);
-        triangles[i].v3 += (dir * dist);
-    }
-}
-
-void rotate(std::vector<Triangle> &triangles, mat3x3d rotation) {
-    for (size_t i = 0; i < triangles.size(); ++i) {
-        triangles[i].v1 = rotation * triangles[i].v1;
-        triangles[i].v2 = rotation * triangles[i].v1;
-        triangles[i].v3 = rotation * triangles[i].v2;
-    }
-}
+//
+//void translate(std::vector<Triangle> &triangles, double dist, vec3d dir) {
+//    for (size_t i = 0; i < triangles.size(); ++i) {
+//        triangles[i].v1 += (dir * dist);
+//        triangles[i].v2 += (dir * dist);
+//        triangles[i].v3 += (dir * dist);
+//    }
+//}
+//
+//void rotate(std::vector<Triangle> &triangles, mat3x3d rotation) {
+//    for (size_t i = 0; i < triangles.size(); ++i) {
+//        triangles[i].v1 = rotation * triangles[i].v1;
+//        triangles[i].v2 = rotation * triangles[i].v1;
+//        triangles[i].v3 = rotation * triangles[i].v2;
+//    }
+//}
 
 // Loads the Cornell Box. It is scaled to fill the volume:
 // -1 <= x <= +1
 // -1 <= y <= +1
 // -1 <= z <= +1
-void LoadTestModel(std::vector<std::unique_ptr<Geometry>> &geometry) {
-    std::vector<Triangle> triangles;
+void LoadTestModel(std::vector<std::shared_ptr<Geometry>> &geometry) {
     // Defines colors:
     vec3f red(0.75f, 0.15f, 0.15f);
     vec3f yellow(0.75f, 0.75f, 0.15f);
@@ -54,15 +35,37 @@ void LoadTestModel(std::vector<std::unique_ptr<Geometry>> &geometry) {
     vec3f purple(0.75f, 0.15f, 0.75f);
     vec3f white(0.75f, 0.75f, 0.75f);
 
-    triangles.clear();
-    triangles.reserve(5 * 2 * 3);
+    geometry.clear();
+    geometry.reserve(5 * 2 * 3 + 1);
 
-    geometry.push_back(std::make_unique<Sphere>(vec3d(0.4, 0.6, -0.2), 0.4, purple));
+    geometry.emplace_back(createSphere(vec3d(0.4, 0.6, -0.2), 0.4, purple));
 
     // ---------------------------------------------------------------------------
     // Room
 
     float L = 555;            // Length of Cornell Box side.
+
+    const auto createTriangleWrap = [&L](vec3d a, vec3d b, vec3d c, vec3d colour) -> std::shared_ptr<Geometry> {
+        a *= 2 / L;
+        b *= 2 / L;
+        c *= 2 / L;
+
+        a -= vec3d(1, 1, 1);
+        b -= vec3d(1, 1, 1);
+        c -= vec3d(1, 1, 1);
+
+        a.x *= -1;
+        b.x *= -1;
+        c.x *= -1;
+
+        a.y *= -1;
+        b.y *= -1;
+        c.y *= -1;
+
+        return createTriangle(a, b, c, colour);
+    };
+
+
 
     vec3d A(L, 0, 0);
     vec3d B(0, 0, 0);
@@ -78,24 +81,24 @@ void LoadTestModel(std::vector<std::unique_ptr<Geometry>> &geometry) {
     // Walls
 
     // Floor:
-    triangles.push_back(Triangle(C, B, A, white));
-    triangles.push_back(Triangle(C, D, B, white));
+    geometry.emplace_back(createTriangleWrap(C, B, A, white));
+    geometry.emplace_back(createTriangleWrap(C, D, B, white));
 
     // Left wall
-    triangles.push_back(Triangle(A, E, C, green));
-    triangles.push_back(Triangle(C, E, G, green));
+    geometry.emplace_back(createTriangleWrap(A, E, C, green));
+    geometry.emplace_back(createTriangleWrap(C, E, G, green));
 
     // Right wall
-    triangles.push_back(Triangle(F, B, D, red));
-    triangles.push_back(Triangle(H, F, D, red));
+    geometry.emplace_back(createTriangleWrap(F, B, D, red));
+    geometry.emplace_back(createTriangleWrap(H, F, D, red));
 
     // Ceiling
-    triangles.push_back(Triangle(E, F, G, white));
-    triangles.push_back(Triangle(F, H, G, white));
+    geometry.emplace_back(createTriangleWrap(E, F, G, white));
+    geometry.emplace_back(createTriangleWrap(F, H, G, white));
 
     // Back wall
-    triangles.push_back(Triangle(G, D, C, white));
-    triangles.push_back(Triangle(G, H, D, white));
+    geometry.emplace_back(createTriangleWrap(G, D, C, white));
+    geometry.emplace_back(createTriangleWrap(G, H, D, white));
 
     // ---------------------------------------------------------------------------
     // Short block
@@ -111,24 +114,24 @@ void LoadTestModel(std::vector<std::unique_ptr<Geometry>> &geometry) {
     H = vec3d(82, 165, 225);
 
     // // Front
-    // triangles.push_back( Triangle(E,B,A,white,matteWhite) );
-    // triangles.push_back( Triangle(E,F,B,white,matteWhite) );
+    // geometry.push_back( Triangle(E,B,A,white,matteWhite) );
+    // geometry.push_back( Triangle(E,F,B,white,matteWhite) );
     //
     // // Front
-    // triangles.push_back( Triangle(F,D,B,white,matteWhite) );
-    // triangles.push_back( Triangle(F,H,D,white,matteWhite) );
+    // geometry.push_back( Triangle(F,D,B,white,matteWhite) );
+    // geometry.push_back( Triangle(F,H,D,white,matteWhite) );
     //
     // // BACK
-    // triangles.push_back( Triangle(H,C,D,white,matteWhite) );
-    // triangles.push_back( Triangle(H,G,C,white,matteWhite) );
+    // geometry.push_back( Triangle(H,C,D,white,matteWhite) );
+    // geometry.push_back( Triangle(H,G,C,white,matteWhite) );
     //
     // // LEFT
-    // triangles.push_back( Triangle(G,E,C,white,matteWhite) );
-    // triangles.push_back( Triangle(E,A,C,white,matteWhite) );
+    // geometry.push_back( Triangle(G,E,C,white,matteWhite) );
+    // geometry.push_back( Triangle(E,A,C,white,matteWhite) );
     //
     // // TOP
-    // triangles.push_back( Triangle(G,F,E,white,matteWhite) );
-    // triangles.push_back( Triangle(G,H,F,white,matteWhite) );
+    // geometry.push_back( Triangle(G,F,E,white,matteWhite) );
+    // geometry.push_back( Triangle(G,H,F,white,matteWhite) );
 
     // ---------------------------------------------------------------------------
     // Tall block
@@ -144,32 +147,26 @@ void LoadTestModel(std::vector<std::unique_ptr<Geometry>> &geometry) {
     H = vec3d(314, 330, 456);
 
     // // Front
-    // triangles.push_back( Triangle(E,B,A,cyan) );
-    // triangles.push_back( Triangle(E,F,B,cyan) );
+    // geometry.push_back( Triangle(E,B,A,cyan) );
+    // geometry.push_back( Triangle(E,F,B,cyan) );
 
     // // Front
-    // triangles.push_back( Triangle(F,D,B,cyan) );
-    // triangles.push_back( Triangle(F,H,D,cyan) );
+    // geometry.push_back( Triangle(F,D,B,cyan) );
+    // geometry.push_back( Triangle(F,H,D,cyan) );
 
     // // BACK
-    // triangles.push_back( Triangle(H,C,D,cyan) );
-    // triangles.push_back( Triangle(H,G,C,cyan) );
+    // geometry.push_back( Triangle(H,C,D,cyan) );
+    // geometry.push_back( Triangle(H,G,C,cyan) );
 
     // // LEFT
-    // triangles.push_back( Triangle(G,E,C,cyan) );
-    // triangles.push_back( Triangle(E,A,C,cyan) );
+    // geometry.push_back( Triangle(G,E,C,cyan) );
+    // geometry.push_back( Triangle(E,A,C,cyan) );
 
     // // TOP
-    // triangles.push_back( Triangle(G,F,E,cyan) );
-    // triangles.push_back( Triangle(G,H,F,cyan) );
+    // geometry.push_back( Triangle(G,F,E,cyan) );
+    // geometry.push_back( Triangle(G,H,F,cyan) );
 
     // ----------------------------------------------
     // Scale to the volume [-1,1]^3
-
-    scale(triangles, L);
-
-    for (size_t i = 0; i < triangles.size(); ++i) {
-        geometry.push_back(std::make_unique<Triangle>(triangles[i]));
-    }
 }
 }
