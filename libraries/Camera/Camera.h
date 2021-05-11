@@ -98,8 +98,8 @@ namespace bv {
             return !(p.x < 0 || p.x >= imageWidth || p.y < 0 || p.y >= imageHeight);
         }
 
-        vec2<T> project(const vec4<T>& point) const {
-            vec3<T> homoPoint = projMatrix() * point.homoNorm();
+        vec2<T> project(const vec3<T>& point) const {
+            vec3<T> homoPoint = projMatrix() * vec4<T>{point, 1.0};
 
             vec2<T> pp = {homoPoint.x/homoPoint.z, homoPoint.y/homoPoint.z};
 

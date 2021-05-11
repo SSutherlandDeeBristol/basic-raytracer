@@ -92,17 +92,17 @@ int main() {
 
     LoadTestModel(geometry);
 
-    vec3d intersectionPoint;
-
     screen *mainscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, false );
 
     while (Update(camera)) {
         // Raytrace
+
         for (int y = 0; y < camera.imageHeight; y++) {
             for (int x = 0; x < camera.imageWidth; x++) {
                 vec3f colour(0.0,0.0,0.0);
                 double closestDist = std::numeric_limits<double>::max();
                 for (const auto& g : geometry) {
+                    vec3d intersectionPoint;
                     if (g->intersect(Ray(camera.trans, camera.directionFromPixel({x,y})), intersectionPoint)) {
                         auto dist = (intersectionPoint - camera.trans).length();
                         if (dist < closestDist) {
@@ -116,25 +116,25 @@ int main() {
         }
 
         // Rasterise vertices
-        // for (const auto& g : geometry) {
-        //     if (Triangle* t = dynamic_cast<Triangle*>(g.get())) {
-        //         auto pp1 = camera.project(Vec4d{(*t).v1, 1.0});
-        //         auto pp2 = camera.project(Vec4d{(*t).v2, 1.0});
-        //         auto pp3 = camera.project(Vec4d{(*t).v3, 1.0});
-
-        //         if (camera.inImage(pp1))
-        //             PutPixelSDL(mainscreen, pp1.x, pp1.y, 0xFFFFFF);
-
-        //         if (camera.inImage(pp2))
-        //             PutPixelSDL(mainscreen, pp2.x, pp2.y, 0xFFFFFF);
-
-        //         if (camera.inImage(pp3))
-        //             PutPixelSDL(mainscreen, pp3.x, pp3.y, 0xFFFFFF);
-        //     }
-        // }
+//         for (const auto& g : geometry) {
+//             if (Triangle* t = dynamic_cast<Triangle*>(g.get())) {
+//                 auto pp1 = camera.project((*t).v1);
+//                 auto pp2 = camera.project((*t).v2);
+//                 auto pp3 = camera.project((*t).v3);
+//
+//                 if (camera.inImage(pp1))
+//                     PutPixelSDL(mainscreen, int(pp1.x), int(pp1.y), t->colour);
+//
+//                 if (camera.inImage(pp2))
+//                     PutPixelSDL(mainscreen, int(pp2.x), int(pp2.y), t->colour);
+//
+//                 if (camera.inImage(pp3))
+//                     PutPixelSDL(mainscreen, int(pp3.x), int(pp3.y), t->colour);
+//             }
+//         }
 
         SDL_Renderframe(mainscreen);
-        SDL_SaveImage(mainscreen, "mainout.bmp");
+//        SDL_SaveImage(mainscreen, "mainout.bmp");
     }
 
     KillSDL(mainscreen);
