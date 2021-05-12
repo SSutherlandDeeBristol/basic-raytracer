@@ -1,14 +1,16 @@
 #include <iostream>
+#include <thread>
 
+#include "BVH.h"
 #include "Camera.h"
 #include "Geometry.h"
 #include "SDL2/SDL.h"
 #include "SDLauxiliary.h"
-#include "TestModel.h"
+#include "Scenes..h"
 
-constexpr double PI = 3.14159265359;
 constexpr double SCREEN_WIDTH = 640.0;
 constexpr double SCREEN_HEIGHT = 480.0;
+constexpr int numSlices = 8;
 
 namespace bv {
     bool Update(Camerad& camera) {
@@ -28,22 +30,22 @@ namespace bv {
                 int key_code = e.key.keysym.sym;
                 switch(key_code) {
                     case SDLK_UP:
-                        camera.updatePitch(PI/18);
+                        camera.updatePitch(M_PI/18);
                         break;
                     case SDLK_DOWN:
-                        camera.updatePitch(-PI/18);
+                        camera.updatePitch(-M_PI/18);
                         break;
                     case SDLK_LEFT:
-                        camera.updateYaw(-PI/18);
+                        camera.updateYaw(-M_PI/18);
                         break;
                     case SDLK_RIGHT:
-                        camera.updateYaw(PI/18);
+                        camera.updateYaw(M_PI/18);
                         break;
                     case SDLK_q:
-                        camera.updateRoll(-PI/18);
+                        camera.updateRoll(-M_PI/18);
                         break;
                     case SDLK_e:
-                        camera.updateRoll(PI/18);
+                        camera.updateRoll(M_PI/18);
                         break;
                     case SDLK_r:
                         camera.lookAt({0,0,0});
@@ -88,23 +90,25 @@ int main() {
     Camerad camera = Camerad(trans, 0.0, 0.0, 0.0, SCREEN_HEIGHT, 1.0, SCREEN_WIDTH,
                      SCREEN_HEIGHT, SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
 
-    std::vector<std::shared_ptr<Geometry>> geometry;
+    const auto geometry = createCornellBox();
 
-    LoadTestModel(geometry);
+    if (numSlices > std::thread::hardware_concurrency())
+        throw std::runtime_error("Not enough threads for numSlices.");
 
     screen *mainscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, false );
 
-    while (Update(camera)) {
-        // Raytrace
-        for (int y = 0; y < camera.imageHeight; y++) {
+    const auto trace = [&camera, &geometry, &mainscreen](int sliceIndex) {
+        const auto startY = (camera.imageHeight / numSlices) * sliceIndex;
+        for (int y = startY; y < startY + (camera.imageHeight / numSlices); y++) {
             for (int x = 0; x < camera.imageWidth; x++) {
                 vec3f colour(0.0,0.0,0.0);
                 double closestDist = std::numeric_limits<double>::max();
 
                 for (const auto& g : geometry) {
                     vec3d intersectionPoint;
+                    auto ray = std::make_unique<Ray>(camera.trans, camera.directionFromPixel({x,y}));
 
-                    if (g->intersect(Ray(camera.trans, camera.directionFromPixel({x,y})), intersectionPoint)) {
+                    if (g->intersect(ray, intersectionPoint)) {
 
                         auto dist = (intersectionPoint - camera.trans).length();
 
@@ -117,6 +121,17 @@ int main() {
                 PutPixelSDL(mainscreen, x, y, colour);
             }
         }
+    };
+
+    while (Update(camera)) {
+        // Raytrace
+        std::vector<std::thread> threads;
+        for (int i = 0; i < numSlices; ++i) {
+            threads.emplace_back([i, &trace](){ trace(i); });
+        }
+
+        for (auto& thread : threads)
+            thread.join();
 
         SDL_Renderframe(mainscreen);
 //        SDL_SaveImage(mainscreen, "mainout.bmp");

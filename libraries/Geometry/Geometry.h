@@ -3,9 +3,7 @@
 #include <memory>
 #include <optional>
 
-#include "glm/vec3.hpp"
-
-#include "BVH.h"
+#include "GlmTypes.h"
 
 namespace bv {
 
@@ -14,15 +12,17 @@ struct Intersection {
     vec3d normal;
 };
 
+class Ray;
+
 class Geometry {
 public:
 
     Geometry(const glm::vec3& colour)
             : colour(colour) {};
 
-    virtual std::optional<Intersection> intersect(const Ray& ray, vec3d& intersectionPoint) = 0;
+    virtual std::optional<Intersection> intersect(const std::unique_ptr<Ray>& ray, vec3d& intersectionPoint) = 0;
 
-    virtual BoundingBox<vec3d> boundingBox() = 0;
+    virtual std::pair<vec3d, vec3d> getBoundingBox() = 0;
 
     vec3f getColour() {
         return colour;

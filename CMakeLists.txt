@@ -12,5 +12,7 @@ add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-Werror>")
 add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-Wno-unknown-pragmas>")
 add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-Wno-unused-but-set-variable>")
 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+
 add_subdirectory("apps")
 add_subdirectory("libraries")

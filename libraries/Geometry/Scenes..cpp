@@ -1,4 +1,4 @@
-#include "TestModel.h"
+#include "Scenes..h"
 
 #include "Geometry.h"
 
@@ -25,7 +25,7 @@ namespace bv {
 // -1 <= x <= +1
 // -1 <= y <= +1
 // -1 <= z <= +1
-void LoadTestModel(std::vector<std::shared_ptr<Geometry>> &geometry) {
+std::vector<std::shared_ptr<Geometry>> createCornellBox() {
     // Defines colors:
     vec3f red(0.75f, 0.15f, 0.15f);
     vec3f yellow(0.75f, 0.75f, 0.15f);
@@ -35,7 +35,7 @@ void LoadTestModel(std::vector<std::shared_ptr<Geometry>> &geometry) {
     vec3f purple(0.75f, 0.15f, 0.75f);
     vec3f white(0.75f, 0.75f, 0.75f);
 
-    geometry.clear();
+    std::vector<std::shared_ptr<Geometry>> geometry;
     geometry.reserve(5 * 2 * 3 + 1);
 
     geometry.emplace_back(createSphere(vec3d(0.4, 0.6, -0.2), 0.4, purple));
@@ -64,8 +64,6 @@ void LoadTestModel(std::vector<std::shared_ptr<Geometry>> &geometry) {
 
         return createTriangle(a, b, c, colour);
     };
-
-
 
     vec3d A(L, 0, 0);
     vec3d B(0, 0, 0);
@@ -167,6 +165,6 @@ void LoadTestModel(std::vector<std::shared_ptr<Geometry>> &geometry) {
     // geometry.push_back( Triangle(G,H,F,cyan) );
 
     // ----------------------------------------------
-    // Scale to the volume [-1,1]^3
+    return geometry;
 }
 }
