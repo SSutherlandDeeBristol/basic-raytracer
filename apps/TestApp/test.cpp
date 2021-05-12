@@ -6,7 +6,7 @@
 #include "Geometry.h"
 #include "SDL2/SDL.h"
 #include "SDLauxiliary.h"
-#include "Scenes..h"
+#include "Scenes.h"
 
 constexpr double SCREEN_WIDTH = 640.0;
 constexpr double SCREEN_HEIGHT = 480.0;
