@@ -10,28 +10,19 @@ namespace bv {
 struct Intersection {
     vec3d pos;
     vec3d normal;
+    vec3f colour;
 };
 
-class Ray;
+struct Ray {
+    vec3d start;
+    vec3d dir;
+};
 
 class Geometry {
 public:
+    virtual bool intersect(const Ray& ray, Intersection& intersectionPoint) = 0;
 
-    Geometry(const glm::vec3& colour)
-            : colour(colour) {};
-
-    virtual std::optional<Intersection> intersect(const std::unique_ptr<Ray>& ray, vec3d& intersectionPoint) = 0;
-
-    virtual std::pair<vec3d, vec3d> getBoundingBox() = 0;
-
-    vec3f getColour() {
-        return colour;
-    }
-
-    ~Geometry() = default;
-
-private:
-    vec3f colour;
+    virtual ~Geometry() = 0;
 };
 
 std::shared_ptr<Geometry> createTriangle(const vec3d v1, const vec3d v2, const vec3d v3, const vec3f colour);

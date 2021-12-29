@@ -1,30 +1,28 @@
 #pragma once
 
-#include <algorithm>
-#include <iostream>
-#include <stdint.h>
+#include <memory>
 
 #include "glm/vec3.hpp"
-#include "SDL2/SDL.h"
 
 namespace bv {
-typedef struct {
-    SDL_Window *window;
-    SDL_Renderer *renderer;
-    SDL_Texture *texture;
-    int height;
-    int width;
-    uint32_t *buffer;
-} screen;
 
-screen *InitializeSDL(int width, int height, bool fullscreen = false);
+class SDLScreen {
+public:
+    SDLScreen();
 
-void PutPixelSDL(screen *s, int x, int y, glm::vec3 color);
+    void init(const int width, const int height, const bool fullscreen = false);
 
-void SDL_Renderframe(screen *s);
+    // Buffer is not protected by a mutex lock for performance reasons.
+    void putPixel(const int x, const int y, const glm::vec3& colour);
 
-void KillSDL(screen *s);
+    void render();
 
-void SDL_SaveImage(screen *s, const char *filename);
+    void saveImage(const std::string& filename);
 
+    ~SDLScreen();
+
+private:
+    class Impl;
+    std::unique_ptr<Impl> impl;
+};
 }

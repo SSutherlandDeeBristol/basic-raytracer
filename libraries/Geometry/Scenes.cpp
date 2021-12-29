@@ -28,10 +28,10 @@ namespace bv {
 std::vector<std::shared_ptr<Geometry>> createCornellBox() {
     // Defines colors:
     vec3f red(0.75f, 0.15f, 0.15f);
-    vec3f yellow(0.75f, 0.75f, 0.15f);
+//    vec3f yellow(0.75f, 0.75f, 0.15f);
     vec3f green(0.15f, 0.75f, 0.15f);
-    vec3f cyan(0.15f, 0.75f, 0.75f);
-    vec3f blue(0.15f, 0.15f, 0.75f);
+//    vec3f cyan(0.15f, 0.75f, 0.75f);
+//    vec3f blue(0.15f, 0.15f, 0.75f);
     vec3f purple(0.75f, 0.15f, 0.75f);
     vec3f white(0.75f, 0.75f, 0.75f);
 

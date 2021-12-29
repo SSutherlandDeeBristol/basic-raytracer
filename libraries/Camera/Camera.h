@@ -32,6 +32,10 @@ namespace bv {
             return intrinsics * extrinsics;
         }
 
+        vec3<T> directionFromPixelUnnormalised(vec2<T> pixel) const {
+            return rot * vec3<T>(pixel.x - centreX, pixel.y - centreY, focalLength);
+        }
+
         vec3<T> directionFromPixel(vec2<T> pixel) const {
             return glm::normalize(rot * vec3<T>(pixel.x - centreX, pixel.y - centreY, focalLength));
         }
@@ -72,8 +76,8 @@ namespace bv {
 
         void lookAt(const vec3<T>& to) {
             vec3<T> forward = glm::normalize(to - trans);
-            vec3<T> right = glm::normalize(glm::cross(vec3<T>{0,1,0}, forward));
-            vec3<T> up = glm::normalize(glm::cross(forward, right));
+//            vec3<T> right = glm::normalize(glm::cross(vec3<T>{0,1,0}, forward));
+//            vec3<T> up = glm::normalize(glm::cross(forward, right));
 
             pitch = asin(-forward.y);
             yaw = atan2(forward.x, forward.z);

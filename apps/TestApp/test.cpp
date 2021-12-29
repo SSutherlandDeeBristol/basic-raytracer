@@ -1,26 +1,28 @@
-#include <iostream>
-#include <thread>
+//#pragma clang optimize off
 
-#include "BVH.h"
+#include <iostream>
+
 #include "Camera.h"
 #include "Geometry.h"
-#include "SDL2/SDL.h"
+#include "SDL.h"
 #include "SDLauxiliary.h"
 #include "Scenes.h"
+#include "ThreadPool.h"
+#include "Latch.h"
 
 constexpr double SCREEN_WIDTH = 640.0;
 constexpr double SCREEN_HEIGHT = 480.0;
-constexpr int numSlices = 8;
+constexpr int numSlices = 6;
 
 namespace bv {
     bool Update(Camerad& camera) {
-        static int t = SDL_GetTicks();
+        static auto t = SDL_GetTicks64();
         /* Compute frame time */
-        int t2 = SDL_GetTicks();
-        float dt = float(t2-t);
+        auto t2 = SDL_GetTicks64();
+        auto dt = t2 - t;
         t = t2;
 
-        std::cout << "Render time: " << dt << " ms." << std::endl;
+        std::cout << "Render time: " << dt << " ms. FPS: " << 1000.0f / std::max(dt, 1ULL) << "\n";
 
         SDL_Event e;
         while(SDL_PollEvent(&e)) {
@@ -30,16 +32,16 @@ namespace bv {
                 int key_code = e.key.keysym.sym;
                 switch(key_code) {
                     case SDLK_UP:
-                        camera.updatePitch(M_PI/18);
-                        break;
-                    case SDLK_DOWN:
                         camera.updatePitch(-M_PI/18);
                         break;
+                    case SDLK_DOWN:
+                        camera.updatePitch(M_PI/18);
+                        break;
                     case SDLK_LEFT:
-                        camera.updateYaw(-M_PI/18);
+                        camera.updateYaw(M_PI/18);
                         break;
                     case SDLK_RIGHT:
-                        camera.updateYaw(M_PI/18);
+                        camera.updateYaw(-M_PI/18);
                         break;
                     case SDLK_q:
                         camera.updateRoll(-M_PI/18);
@@ -92,52 +94,56 @@ int main() {
 
     const auto geometry = createCornellBox();
 
-    if (numSlices > std::thread::hardware_concurrency())
-        throw std::runtime_error("Not enough threads for numSlices.");
+    SDLScreen screen;
+    screen.init(SCREEN_WIDTH, SCREEN_HEIGHT, false);
 
-    screen *mainscreen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, false );
+    const auto sliceHeight = (camera.imageHeight / numSlices);
 
-    const auto trace = [&camera, &geometry, &mainscreen](int sliceIndex) {
-        const auto startY = (camera.imageHeight / numSlices) * sliceIndex;
-        for (int y = startY; y < startY + (camera.imageHeight / numSlices); y++) {
+    const auto trace = [&camera, &geometry, &screen, sliceHeight](int sliceIndex) {
+        const auto startY = sliceHeight * sliceIndex;
+        for (int y = startY; y < startY + sliceHeight; y++) {
             for (int x = 0; x < camera.imageWidth; x++) {
-                vec3f colour(0.0,0.0,0.0);
                 double closestDist = std::numeric_limits<double>::max();
+                vec3f colour(0.0f,0.0f,0.0f);
 
                 for (const auto& g : geometry) {
-                    vec3d intersectionPoint;
-                    auto ray = std::make_unique<Ray>(camera.trans, camera.directionFromPixel({x,y}));
+                    Intersection intersection{};
 
-                    if (g->intersect(ray, intersectionPoint)) {
-
-                        auto dist = (intersectionPoint - camera.trans).length();
+                    if (g->intersect(Ray{camera.trans, camera.directionFromPixelUnnormalised({x,y})}, intersection)) {
+                        const auto dir = intersection.pos - camera.trans;
+                        const auto dist = glm::dot(dir, dir);
 
                         if (dist < closestDist) {
-                            colour = g->getColour();
+                            colour = intersection.colour;
                             closestDist = dist;
                         }
                     }
                 }
-                PutPixelSDL(mainscreen, x, y, colour);
+
+                screen.putPixel(x, y, colour);
             }
         }
     };
 
+    ThreadPool threadPool(4);
+
     while (Update(camera)) {
+        Latch latch(numSlices);
+
         // Raytrace
-        std::vector<std::thread> threads;
         for (int i = 0; i < numSlices; ++i) {
-            threads.emplace_back([i, &trace](){ trace(i); });
+            threadPool.addTask([i, &trace, &latch](){
+                trace(i);
+                latch.countDown();
+            });
         }
 
-        for (auto& thread : threads)
-            thread.join();
+        latch.wait();
 
-        SDL_Renderframe(mainscreen);
-//        SDL_SaveImage(mainscreen, "mainout.bmp");
+        screen.render();
+//        screen.saveImage("mainout.bmp");
     }
 
-    KillSDL(mainscreen);
     return 1;
 }
 
