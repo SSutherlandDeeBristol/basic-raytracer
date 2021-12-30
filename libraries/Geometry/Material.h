@@ -18,4 +18,5 @@ public:
 
 std::shared_ptr<Material> createLambertianMaterial(const vec3f& colour);
 std::shared_ptr<Material> createMetalMaterial(const vec3f& colour, double fuzz);
+std::shared_ptr<Material> createDielectricMaterial(const double indexOfRefraction);
 }

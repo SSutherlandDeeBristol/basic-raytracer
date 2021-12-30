@@ -1,6 +1,7 @@
 #include "Material.h"
 
 #include <algorithm>
+#include <random>
 
 #include "glm/gtc/random.hpp"
 #include "glm/gtc/epsilon.hpp"
@@ -53,6 +54,35 @@ private:
     double fuzz;
 };
 
+class Dielectric : public Material {
+public:
+    Dielectric(const double indexOfRefraction) : indexOfRefraction(indexOfRefraction) {}
+
+    bool scatter(const Ray& ray, const Hit& hit, vec3f& attenuation, Ray& scattered) const override {
+        attenuation = vec3f{1.0f, 1.0f, 1.0f};
+
+        const auto etaOverEtaP = hit.frontFacing ? 1.0 / indexOfRefraction : indexOfRefraction;
+
+        const auto cosTheta = std::fmin(glm::dot(-ray.dir, hit.normal), 1.0);
+        const auto sinTheta = std::sqrt(1 - cosTheta * cosTheta);
+
+        scattered.start = hit.pos;
+
+        if (etaOverEtaP * sinTheta > 1.0 || reflectance(cosTheta, etaOverEtaP) > dist(mt)) {
+            scattered.dir = reflect(ray.dir, hit.normal);
+        } else {
+            scattered.dir = refract(glm::normalize(ray.dir), hit.normal, etaOverEtaP);
+        }
+
+        return true;
+    }
+
+private:
+    double indexOfRefraction;
+    mutable std::mt19937_64 mt{};
+    mutable std::uniform_real_distribution<double> dist{0.0, 1.0};
+};
+
 std::shared_ptr<Material> createLambertianMaterial(const vec3f &colour) {
     return std::make_shared<LambertianMaterial>(colour);
 }
@@ -61,5 +91,9 @@ std::shared_ptr<Material> createMetalMaterial(const vec3f &colour, const double 
     return std::make_shared<Metal>(colour, fuzz);
 }
 
-Material::~Material() = default;
+std::shared_ptr<Material> createDielectricMaterial(const double indexOfRefraction) {
+    return std::make_shared<Dielectric>(indexOfRefraction);
+}
+
+    Material::~Material() = default;
 }

@@ -85,7 +85,7 @@ std::unique_ptr<Scene> createCornellBox() {
 
     auto scene = std::make_unique<Scene>();
 
-    scene->add(createSphere(vec3d(0.4, 0.6, -0.2), 0.4, createMetalMaterial(white + 0.05f, 0.0)));
+    scene->add(createSphere(vec3d(0.4, 0.6, -0.2), 0.4, createDielectricMaterial(1.5)));
 
     // ---------------------------------------------------------------------------
     // Room

@@ -118,7 +118,7 @@ int main() {
     constexpr int screenWidth = 640;
     constexpr int screenHeight = 480;
     constexpr int numSlices = 4;
-    constexpr int numSamples = 256;
+    constexpr int numSamples = 128;
     constexpr int maxBounces = 128;
     constexpr float scale = 1.0 / numSamples;
 
