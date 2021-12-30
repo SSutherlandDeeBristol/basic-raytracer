@@ -108,7 +108,7 @@ namespace bv {
         }
 
         const auto unitRayDir = glm::normalize(ray.dir);
-        const float t = 0.5f * (unitRayDir.y + 1.0);
+        const float t = 0.5f * (unitRayDir.y + 1.0f);
         return (1.0f - t) * vec3f(1.0f, 1.0f, 1.0f) + t * vec3f(0.5f, 0.7f, 1.0f);
     }
 }

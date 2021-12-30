@@ -92,7 +92,7 @@ std::unique_ptr<Scene> createCornellBox() {
 
     float L = 555;            // Length of Cornell Box side.
 
-    const auto createTriangleWrap = [&L](vec3d a, vec3d b, vec3d c, vec3d colour) -> std::shared_ptr<Geometry> {
+    const auto createTriangleWrap = [&L](vec3d a, vec3d b, vec3d c, vec3d colour, bool mirror = false) -> std::shared_ptr<Geometry> {
         a *= 2 / L;
         b *= 2 / L;
         c *= 2 / L;
@@ -109,7 +109,7 @@ std::unique_ptr<Scene> createCornellBox() {
         b.y *= -1;
         c.y *= -1;
 
-        return createTriangle(a, b, c, createLambertianMaterial(colour));
+        return createTriangle(a, b, c, mirror ? createMetalMaterial(colour, 0.0f) : createLambertianMaterial(colour));
     };
 
     vec3d A(L, 0, 0);
@@ -192,8 +192,8 @@ std::unique_ptr<Scene> createCornellBox() {
     H = vec3d(314, 330, 456);
 
      // Front
-     scene->add(createTriangleWrap(E,B,A,white));
-     scene->add(createTriangleWrap(E,F,B,white));
+     scene->add(createTriangleWrap(E,B,A,white, true));
+     scene->add(createTriangleWrap(E,F,B,white, true));
 
      // Front
      scene->add(createTriangleWrap(F,D,B,white));
