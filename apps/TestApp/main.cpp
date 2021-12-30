@@ -115,11 +115,11 @@ namespace bv {
 
 int main() {
     using namespace bv;
-    constexpr int screenWidth = 640;
-    constexpr int screenHeight = 480;
+    constexpr int screenWidth = 1200;
+    constexpr int screenHeight = 800;
     constexpr int numSlices = 4;
-    constexpr int numSamples = 128;
-    constexpr int maxBounces = 128;
+    constexpr int numSamples = 512;
+    constexpr int maxBounces = 512;
     constexpr float scale = 1.0 / numSamples;
 
     Camerad camera({0.0, 0.0, -3.0}, 0.0, 0.0, 0.0, screenHeight, 1.0, screenWidth,
