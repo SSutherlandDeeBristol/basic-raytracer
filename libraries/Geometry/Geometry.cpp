@@ -1,15 +1,17 @@
 #include "Geometry.h"
 
 #include <algorithm>
-#include <iostream>
+
+#include "GeometryUtils.h"
+#include "Material.h"
 
 namespace bv {
 
 // https://jcgt.org/published/0005/03/03/
 class PrecomputedTriangle : public Geometry {
 public:
-    PrecomputedTriangle(const vec3d v1, const vec3d v2, const vec3d v3, const vec3f colour)
-            : e1(v2 - v1), e2(v3 - v1), colour(colour) {
+    PrecomputedTriangle(const vec3d v1, const vec3d v2, const vec3d v3, const std::shared_ptr<Material>& material)
+            : e1(v2 - v1), e2(v3 - v1), material(material) {
         normal = glm::normalize(glm::cross(e1,e2));
 
         double x1;
@@ -44,7 +46,7 @@ public:
         }
     }
 
-    bool intersect(const Ray& ray, Intersection& intersection) override {
+    bool intersect(const Ray& ray, Hit& hit, const double, const double) override {
         // Get barycentric z components of ray origin and direction for calculation of t value
         const auto transS = glm::dot(transform[2], vec4d(ray.start, 1.0)); // transform[2][0] * ray.start.x + transform[2][1] * ray.start.y + transform[2][2] * ray.start.z + transform[2][3];
         const auto transD = glm::dot(transform[2], vec4d(ray.dir, 0.0)); // transform[2][0] * ray.dir.x + transform[2][1] * ray.dir.y + transform[2][2] * ray.dir.z;
@@ -66,9 +68,9 @@ public:
         // final intersection test
         // TODO: figure out how to scale this properly
         if (xg >= 0.0 && yg >= 0.0 && yg + xg < 4.0) {
-            intersection.pos = wr;
-            intersection.normal = normal;
-            intersection.colour = colour;
+            hit.pos = wr;
+            hit.normal = normal;
+            hit.material = material;
             return true;
         }
 
@@ -80,7 +82,7 @@ public:
 private:
     vec3d e1, e2;
     vec3d normal;
-    vec3f colour;
+    std::shared_ptr<Material> material;
 
     mat4x3d transform;
 };
@@ -88,12 +90,12 @@ private:
 class Triangle : public Geometry {
 public:
 
-    Triangle(const vec3d v1, const vec3d v2, const vec3d v3, const vec3f colour)
-            : v1(v1), e1(v2 - v1), e2(v3 - v1), colour(colour) {
-        normal = glm::normalize(glm::cross(v2 - v1,v3 - v1));
+    Triangle(const vec3d v1, const vec3d v2, const vec3d v3, const std::shared_ptr<Material>& material)
+            : v1(v1), e1(v2 - v1), e2(v3 - v1), material(material) {
+        normal = glm::normalize(glm::cross(e1,e2));
     }
 
-    bool intersect(const Ray& ray, Intersection& intersection) override {
+    bool intersect(const Ray& ray, Hit& hit, const double tMin, const double tMax) override {
         const vec3d h = glm::cross(ray.dir, e2);
         const double a = glm::dot(h, e1);
 
@@ -115,8 +117,12 @@ public:
 
         const double t = glm::dot(f, glm::dot(e2, q));
 
-        if (t > 1e-12) {
-            intersection = Intersection{ray.start + ray.dir * t, normal, colour};
+        if (t >= tMin && t <= tMax) {
+            hit.t = t;
+            hit.pos = ray.start + ray.dir * t;
+            hit.normal = normal;
+            hit.material = material;
+            hit.correctNormal(ray.dir);
             return true;
         }
 
@@ -128,27 +134,30 @@ public:
 private:
     vec3d v1, e1, e2;
     vec3d normal;
-    vec3f colour;
+    std::shared_ptr<Material> material;
 };
 
 class Sphere : public Geometry {
 public:
+    Sphere(const vec3d centre, const double radius, const std::shared_ptr<Material>& material)
+            : centre(centre), radius(radius), material(material) {}
 
-    Sphere(const vec3d centre, const double radius, const vec3f colour)
-            : centre(centre), radius(radius), colour(colour) {}
-
-    bool intersect(const Ray& ray, Intersection& intersection) override {
+    bool intersect(const Ray& ray, Hit& hit, const double tMin, const double tMax) override {
         const vec3d oc = ray.start - centre;
         const double a = glm::dot(ray.dir, ray.dir);
-        const double b = 2.0 * glm::dot(oc, ray.dir);
+        const double halfB = glm::dot(oc, ray.dir);
         const double c = glm::dot(oc, oc) - radius * radius;
-        const double discriminant = b*b - 4.0 * a * c;
+        const double discriminant = halfB*halfB - a * c;
 
-        if (discriminant >= 0.0f) {
-            const double t = (-b - sqrt(discriminant)) / (2.0 * a);
-            if (t >= 0) {
+        if (discriminant >= 0.0) {
+            const double t = (-halfB - sqrt(discriminant)) / a;
+            if (t >= tMin && t <= tMax) {
                 const auto intersectionPoint = ray.start + ray.dir * t;
-                intersection = Intersection{intersectionPoint, intersectionPoint - centre, colour};
+                hit.t = t;
+                hit.pos = intersectionPoint;
+                hit.normal = intersectionPoint - centre;
+                hit.material = material;
+                hit.correctNormal(ray.dir);
                 return true;
             }
         }
@@ -161,16 +170,16 @@ public:
 private:
     vec3d centre;
     double radius;
-    vec3f colour;
+    std::shared_ptr<Material> material;
 };
 
 Geometry::~Geometry() = default;
 
-std::shared_ptr<Geometry> createTriangle(const vec3d v1, const vec3d v2, const vec3d v3, const vec3f colour) {
-    return std::make_shared<Triangle>(v1, v2, v3, colour);
+std::shared_ptr<Geometry> createTriangle(const vec3d& v1, const vec3d& v2, const vec3d& v3, const std::shared_ptr<Material>& material) {
+    return std::make_shared<Triangle>(v1, v2, v3, material);
 }
 
-std::shared_ptr<Geometry> createSphere(const vec3d centre, const double radius, const vec3f colour) {
-    return std::make_shared<Sphere>(centre, radius, colour);
+std::shared_ptr<Geometry> createSphere(const vec3d& centre, const double radius, const std::shared_ptr<Material>& material) {
+    return std::make_shared<Sphere>(centre, radius, material);
 }
 }

@@ -1,5 +1,9 @@
 //#pragma clang optimize off
 
+#include <random>
+
+#include "glm/gtc/random.hpp"
+
 #include "SDL.h"
 
 #include "Camera.h"
@@ -8,6 +12,8 @@
 #include "Scenes.h"
 #include "ThreadPool.h"
 #include "Latch.h"
+#include "GeometryUtils.h"
+#include "Material.h"
 
 namespace bv {
     bool processEvents(const std::vector<SDL_Event>& events, Camerad& camera) {
@@ -16,7 +22,7 @@ namespace bv {
                 return false;
             } else if (e.type == SDL_KEYDOWN) {
                 int key_code = e.key.keysym.sym;
-                switch(key_code) {
+                switch (key_code) {
                     case SDLK_UP:
                         camera.updatePitch(-M_PI/18);
                         break;
@@ -64,47 +70,85 @@ namespace bv {
                     case SDLK_ESCAPE:
                         /* Move camera quit */
                         return false;
+                    default:
+                        break;
                 }
             }
         }
         return true;
     }
+
+    double randomDouble() {
+        static std::uniform_real_distribution<double> distribution(0.0, 1.0);
+        static std::mt19937 generator{0};
+        return distribution(generator);
+    }
+
+    double randomDouble(const double min, const double max) {
+        return min + (max - min) * randomDouble();
+    }
+
+    vec3f rayColour(const std::unique_ptr<Scene>& scene, const Ray& ray, const int depth) {
+        vec3f black(0.0f,0.0f,0.0f);
+
+        if (depth <= 0)
+            return black;
+
+        Hit hit{};
+
+        if (scene->intersect(ray, hit, 1e-3, 1e12)) {
+            Ray scattered{};
+            vec3f attenuation = black;
+
+            if (hit.material->scatter(ray, hit, attenuation, scattered)) {
+                return attenuation * rayColour(scene, scattered, depth - 1);
+            }
+
+            return black;
+        }
+
+        const auto unitRayDir = glm::normalize(ray.dir);
+        const float t = 0.5f * (unitRayDir.y + 1.0);
+        return (1.0f - t) * vec3f(1.0f, 1.0f, 1.0f) + t * vec3f(0.5f, 0.7f, 1.0f);
+    }
 }
 
 int main() {
     using namespace bv;
-    const int screenWidth = 640;
-    const int screenHeight = 480;
-    const int numSlices = 4;
+    constexpr int screenWidth = 640;
+    constexpr int screenHeight = 480;
+    constexpr int numSlices = 4;
+    constexpr int numSamples = 256;
+    constexpr int maxBounces = 128;
+    constexpr float scale = 1.0 / numSamples;
 
     Camerad camera({0.0, 0.0, -3.0}, 0.0, 0.0, 0.0, screenHeight, 1.0, screenWidth,
                      screenHeight, screenWidth / 2.0, screenHeight / 2.0);
 
-    const auto geometry = createCornellBox();
+    const auto scene = createCornellBox();
 
     SDLScreen screen(screenWidth, screenHeight, "Basic Raytracer", false);
 
     const auto sliceHeight = (camera.imageHeight / numSlices);
 
-    const auto trace = [&camera, &geometry, &screen, sliceHeight](int sliceIndex) {
+    const auto trace = [&camera, &scene, &screen, sliceHeight](int sliceIndex) {
         const auto startY = sliceHeight * sliceIndex;
+
         for (int y = startY; y < startY + sliceHeight; y++) {
             for (int x = 0; x < camera.imageWidth; x++) {
-                double closestDist = std::numeric_limits<double>::max();
-                vec3f colour(0.0f,0.0f,0.0f);
+                vec3f colour(0.0f, 0.0f, 0.0f);
 
-                for (const auto& g : geometry) {
-                    Intersection intersection{};
-
-                    if (g->intersect(Ray{camera.trans, camera.directionFromPixelUnnormalised({x,y})}, intersection)) {
-                        const auto dir = intersection.pos - camera.trans;
-                        const auto dist = glm::dot(dir, dir);
-
-                        if (dist < closestDist) {
-                            colour = intersection.colour;
-                            closestDist = dist;
-                        }
+                if (numSamples > 1) {
+                    for (int i = 0; i < numSamples; ++i) {
+                        const auto ray = Ray{camera.trans, camera.directionFromPixelUnnormalised({x + randomDouble(), y + randomDouble()})};
+                        colour += rayColour(scene, ray, maxBounces);
                     }
+
+                    colour.x = std::sqrt(colour.x * scale);
+                    colour.y = std::sqrt(colour.y * scale);
+                    colour.z = std::sqrt(colour.z * scale);
+                } else {
+                    colour = rayColour(scene, Ray{camera.trans, camera.directionFromPixelUnnormalised({x,y})}, maxBounces);
                 }
 
                 screen.putPixel(x, y, colour);
@@ -116,7 +160,7 @@ int main() {
 
     std::vector<SDL_Event> events;
 
-    while (processEvents(events, camera)) {
+//    while (processEvents(events, camera)) {
         Latch latch(numSlices);
 
         for (int i = 0; i < numSlices; ++i) {
@@ -132,8 +176,8 @@ int main() {
         latch.wait();
 
         events = screen.render();
-//        screen.saveImage("mainout.bmp");
-    }
+        screen.saveImage("mainout.bmp");
+//    }
 
     return 1;
 }

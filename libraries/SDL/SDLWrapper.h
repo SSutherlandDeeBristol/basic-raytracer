@@ -11,10 +11,10 @@ namespace {
 namespace bv {
 class SDLScreen {
 public:
-    SDLScreen(const int width, const int height, const std::string& title, const bool fullscreen = false);
+    SDLScreen(int width, int height, const std::string& title, bool fullscreen = false);
 
     // Buffer is not protected by a mutex lock for performance reasons.
-    void putPixel(const int x, const int y, const glm::vec3& colour);
+    void putPixel(int x, int y, const glm::vec3& colour);
 
     std::vector<SDL_Event> render();
 

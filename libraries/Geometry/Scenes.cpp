@@ -1,8 +1,56 @@
 #include "Scenes.h"
 
+#include <vector>
+
+#include "Material.h"
 #include "Geometry.h"
+#include "GeometryUtils.h"
 
 namespace bv {
+
+class Scene::Impl {
+public:
+    Impl() = default;
+
+    void add(const std::shared_ptr<Geometry>& g) {
+        geometry.emplace_back(g);
+    }
+
+    bool intersect(const Ray &ray, Hit &hit, const double tMin, const double tMax) {
+        auto closestDist = std::numeric_limits<double>::max();
+        bool intersection = false;
+
+        for (const auto& g : geometry) {
+            Hit hit_{};
+            if (g->intersect(ray, hit_, tMin, tMax)) {
+                if (hit_.t < closestDist) {
+                    intersection = true;
+                    hit = hit_;
+                    closestDist = hit_.t;
+                }
+            }
+        }
+
+        return intersection;
+    }
+
+    ~Impl() = default;
+
+private:
+    std::vector<std::shared_ptr<Geometry>> geometry;
+};
+
+Scene::Scene() : impl(std::make_unique<Impl>()) {}
+
+void Scene::add(const std::shared_ptr<Geometry> &geometry) {
+    impl->add(geometry);
+}
+
+bool Scene::intersect(const Ray &ray, Hit &hit, const double tMin, const double tMax) {
+    return impl->intersect(ray, hit, tMin, tMax);
+}
+
+Scene::~Scene() = default;
 
 //
 //void translate(std::vector<Triangle> &triangles, double dist, vec3d dir) {
@@ -25,20 +73,19 @@ namespace bv {
 // -1 <= x <= +1
 // -1 <= y <= +1
 // -1 <= z <= +1
-std::vector<std::shared_ptr<Geometry>> createCornellBox() {
+std::unique_ptr<Scene> createCornellBox() {
     // Defines colors:
     vec3f red(0.75f, 0.15f, 0.15f);
 //    vec3f yellow(0.75f, 0.75f, 0.15f);
     vec3f green(0.15f, 0.75f, 0.15f);
 //    vec3f cyan(0.15f, 0.75f, 0.75f);
 //    vec3f blue(0.15f, 0.15f, 0.75f);
-    vec3f purple(0.75f, 0.15f, 0.75f);
+//    vec3f purple(0.75f, 0.15f, 0.75f);
     vec3f white(0.75f, 0.75f, 0.75f);
 
-    std::vector<std::shared_ptr<Geometry>> geometry;
-    geometry.reserve(5 * 2 * 3 + 1);
+    auto scene = std::make_unique<Scene>();
 
-    geometry.emplace_back(createSphere(vec3d(0.4, 0.6, -0.2), 0.4, purple));
+    scene->add(createSphere(vec3d(0.4, 0.6, -0.2), 0.4, createMetalMaterial(white + 0.05f, 0.0)));
 
     // ---------------------------------------------------------------------------
     // Room
@@ -62,7 +109,7 @@ std::vector<std::shared_ptr<Geometry>> createCornellBox() {
         b.y *= -1;
         c.y *= -1;
 
-        return createTriangle(a, b, c, colour);
+        return createTriangle(a, b, c, createLambertianMaterial(colour));
     };
 
     vec3d A(L, 0, 0);
@@ -79,24 +126,24 @@ std::vector<std::shared_ptr<Geometry>> createCornellBox() {
     // Walls
 
     // Floor:
-    geometry.emplace_back(createTriangleWrap(C, B, A, white));
-    geometry.emplace_back(createTriangleWrap(C, D, B, white));
+    scene->add(createTriangleWrap(C, B, A, white));
+    scene->add(createTriangleWrap(C, D, B, white));
 
     // Left wall
-    geometry.emplace_back(createTriangleWrap(A, E, C, green));
-    geometry.emplace_back(createTriangleWrap(C, E, G, green));
+    scene->add(createTriangleWrap(A, E, C, green));
+    scene->add(createTriangleWrap(C, E, G, green));
 
     // Right wall
-    geometry.emplace_back(createTriangleWrap(F, B, D, red));
-    geometry.emplace_back(createTriangleWrap(H, F, D, red));
+    scene->add(createTriangleWrap(F, B, D, red));
+    scene->add(createTriangleWrap(H, F, D, red));
 
     // Ceiling
-    geometry.emplace_back(createTriangleWrap(E, F, G, white));
-    geometry.emplace_back(createTriangleWrap(F, H, G, white));
+    scene->add(createTriangleWrap(E, F, G, white));
+    scene->add(createTriangleWrap(F, H, G, white));
 
     // Back wall
-    geometry.emplace_back(createTriangleWrap(G, D, C, white));
-    geometry.emplace_back(createTriangleWrap(G, H, D, white));
+    scene->add(createTriangleWrap(G, D, C, white));
+    scene->add(createTriangleWrap(G, H, D, white));
 
     // ---------------------------------------------------------------------------
     // Short block
@@ -111,25 +158,25 @@ std::vector<std::shared_ptr<Geometry>> createCornellBox() {
     G = vec3d(240, 165, 272);
     H = vec3d(82, 165, 225);
 
-    // // Front
-    // geometry.push_back( Triangle(E,B,A,white,matteWhite) );
-    // geometry.push_back( Triangle(E,F,B,white,matteWhite) );
-    //
-    // // Front
-    // geometry.push_back( Triangle(F,D,B,white,matteWhite) );
-    // geometry.push_back( Triangle(F,H,D,white,matteWhite) );
-    //
-    // // BACK
-    // geometry.push_back( Triangle(H,C,D,white,matteWhite) );
-    // geometry.push_back( Triangle(H,G,C,white,matteWhite) );
-    //
-    // // LEFT
-    // geometry.push_back( Triangle(G,E,C,white,matteWhite) );
-    // geometry.push_back( Triangle(E,A,C,white,matteWhite) );
-    //
-    // // TOP
-    // geometry.push_back( Triangle(G,F,E,white,matteWhite) );
-    // geometry.push_back( Triangle(G,H,F,white,matteWhite) );
+//     // Front
+//    scene->add(createTriangleWrap(E,B,A,white));
+//    scene->add(createTriangleWrap(E,F,B,white));
+//
+//     // Front
+//    scene->add(createTriangleWrap(F,D,B,white));
+//    scene->add(createTriangleWrap(F,H,D,white));
+//
+//     // BACK
+//    scene->add(createTriangleWrap(H,C,D,white));
+//    scene->add(createTriangleWrap(H,G,C,white));
+//
+//     // LEFT
+//    scene->add(createTriangleWrap(G,E,C,white));
+//    scene->add(createTriangleWrap(E,A,C,white));
+//
+//     // TOP
+//    scene->add(createTriangleWrap(G,F,E,white));
+//    scene->add(createTriangleWrap(G,H,F,white));
 
     // ---------------------------------------------------------------------------
     // Tall block
@@ -144,27 +191,27 @@ std::vector<std::shared_ptr<Geometry>> createCornellBox() {
     G = vec3d(472, 330, 406);
     H = vec3d(314, 330, 456);
 
-    // // Front
-    // geometry.push_back( Triangle(E,B,A,cyan) );
-    // geometry.push_back( Triangle(E,F,B,cyan) );
+     // Front
+     scene->add(createTriangleWrap(E,B,A,white));
+     scene->add(createTriangleWrap(E,F,B,white));
 
-    // // Front
-    // geometry.push_back( Triangle(F,D,B,cyan) );
-    // geometry.push_back( Triangle(F,H,D,cyan) );
+     // Front
+     scene->add(createTriangleWrap(F,D,B,white));
+     scene->add(createTriangleWrap(F,H,D,white));
 
-    // // BACK
-    // geometry.push_back( Triangle(H,C,D,cyan) );
-    // geometry.push_back( Triangle(H,G,C,cyan) );
+     // BACK
+     scene->add(createTriangleWrap(H,C,D,white));
+     scene->add(createTriangleWrap(H,G,C,white));
 
-    // // LEFT
-    // geometry.push_back( Triangle(G,E,C,cyan) );
-    // geometry.push_back( Triangle(E,A,C,cyan) );
+     // LEFT
+     scene->add(createTriangleWrap(G,E,C,white));
+     scene->add(createTriangleWrap(E,A,C,white));
 
-    // // TOP
-    // geometry.push_back( Triangle(G,F,E,cyan) );
-    // geometry.push_back( Triangle(G,H,F,cyan) );
+     // TOP
+     scene->add(createTriangleWrap(G,F,E,white));
+     scene->add(createTriangleWrap(G,H,F,white));
 
     // ----------------------------------------------
-    return geometry;
+    return scene;
 }
 }
