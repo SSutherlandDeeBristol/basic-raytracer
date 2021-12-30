@@ -1,31 +1,17 @@
 //#pragma clang optimize off
 
-#include <iostream>
+#include "SDL.h"
 
 #include "Camera.h"
 #include "Geometry.h"
-#include "SDL.h"
-#include "SDLauxiliary.h"
+#include "SDLWrapper.h"
 #include "Scenes.h"
 #include "ThreadPool.h"
 #include "Latch.h"
 
-constexpr double SCREEN_WIDTH = 640.0;
-constexpr double SCREEN_HEIGHT = 480.0;
-constexpr int numSlices = 6;
-
 namespace bv {
-    bool Update(Camerad& camera) {
-        static auto t = SDL_GetTicks64();
-        /* Compute frame time */
-        auto t2 = SDL_GetTicks64();
-        auto dt = t2 - t;
-        t = t2;
-
-        std::cout << "Render time: " << dt << " ms. FPS: " << 1000.0f / std::max(dt, 1ULL) << "\n";
-
-        SDL_Event e;
-        while(SDL_PollEvent(&e)) {
+    bool processEvents(const std::vector<SDL_Event>& events, Camerad& camera) {
+        for (const auto& e : events) {
             if (e.type == SDL_QUIT) {
                 return false;
             } else if (e.type == SDL_KEYDOWN) {
@@ -87,15 +73,16 @@ namespace bv {
 
 int main() {
     using namespace bv;
-    vec3d trans(0,0,-3.0);
+    const int screenWidth = 640;
+    const int screenHeight = 480;
+    const int numSlices = 4;
 
-    Camerad camera = Camerad(trans, 0.0, 0.0, 0.0, SCREEN_HEIGHT, 1.0, SCREEN_WIDTH,
-                     SCREEN_HEIGHT, SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
+    Camerad camera({0.0, 0.0, -3.0}, 0.0, 0.0, 0.0, screenHeight, 1.0, screenWidth,
+                     screenHeight, screenWidth / 2.0, screenHeight / 2.0);
 
     const auto geometry = createCornellBox();
 
-    SDLScreen screen;
-    screen.init(SCREEN_WIDTH, SCREEN_HEIGHT, false);
+    SDLScreen screen(screenWidth, screenHeight, "Basic Raytracer", false);
 
     const auto sliceHeight = (camera.imageHeight / numSlices);
 
@@ -127,20 +114,24 @@ int main() {
 
     ThreadPool threadPool(4);
 
-    while (Update(camera)) {
+    std::vector<SDL_Event> events;
+
+    while (processEvents(events, camera)) {
         Latch latch(numSlices);
 
-        // Raytrace
         for (int i = 0; i < numSlices; ++i) {
-            threadPool.addTask([i, &trace, &latch](){
+            threadPool.enqueue([i, &trace, &latch](){
                 trace(i);
                 latch.countDown();
             });
         }
 
+        //
+        // Make sure all worker threads have finished tracing before rendering to screen.
+        //
         latch.wait();
 
-        screen.render();
+        events = screen.render();
 //        screen.saveImage("mainout.bmp");
     }
 

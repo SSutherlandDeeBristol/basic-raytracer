@@ -1,4 +1,4 @@
-set(sources SDLauxiliary.h SDLauxiliary.cpp)
+set(sources SDLWrapper.h SDLWrapper.cpp)
 add_library(SDL STATIC ${sources})
 
 find_package(SDL2 REQUIRED)

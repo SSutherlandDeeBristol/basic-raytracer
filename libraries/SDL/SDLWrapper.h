@@ -2,20 +2,21 @@
 
 #include <memory>
 
-#include "glm/vec3.hpp"
+#include <glm/fwd.hpp>
+
+namespace {
+    typedef union SDL_Event SDL_Event;
+}
 
 namespace bv {
-
 class SDLScreen {
 public:
-    SDLScreen();
-
-    void init(const int width, const int height, const bool fullscreen = false);
+    SDLScreen(const int width, const int height, const std::string& title, const bool fullscreen = false);
 
     // Buffer is not protected by a mutex lock for performance reasons.
     void putPixel(const int x, const int y, const glm::vec3& colour);
 
-    void render();
+    std::vector<SDL_Event> render();
 
     void saveImage(const std::string& filename);
 

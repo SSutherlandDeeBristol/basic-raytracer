@@ -14,19 +14,13 @@ public:
         for (int i = 0; i < numThreads; ++i) {
             threads.emplace_back(std::thread([this]() {
                 std::unique_lock<std::mutex> lk(tasksMutex);
-
                 for (;;) {
-//                    std::cout << "Starting wait...\n";
-
                     cv.wait(lk, [this]() {
-//                        std::cout << "Awakened...\n";
                         return kill || !tasks.empty();
                     });
 
                     if (kill)
                         break;
-
-//                    std::cout << "Popping task...\n";
 
                     auto task = tasks.front();
                     tasks.pop();
@@ -36,15 +30,12 @@ public:
                     task();
 
                     lk.lock();
-
-//                    std::cout << "Finished task...\n";
                 }
             }));
         }
     }
 
-    void addTask(const std::function<void()>& task) {
-//        std::cout << "Adding task...\n";
+    void enqueue(const std::function<void()>& task) {
         {
             std::lock_guard lk(tasksMutex);
             tasks.emplace(task);
